@@ -1,0 +1,22 @@
+{
+  "id": "pixel-town",
+  "name": "Pixel Town",
+  "seed": 42,
+  "map": { "width": 28, "height": 18, "tile_size": 16 },
+  "clock": {
+    "slots": ["Morning", "Afternoon", "Night"],
+    "turn_gap_seconds": 3,
+    "slot_gap_seconds": 4
+  },
+  "history_lines": 6,
+  "default_model": "gemini-2.5-flash",
+  "turn_order": ["charlie", "greg", "bob", "mabel", "dina"],
+  "globals": { "threat_level": "Peaceful", "town_treasury": 200 },
+  "locations": {
+    "security_desk":       { "name": "Security Desk",       "type": "office",   "color": "#3d4f7a", "rect": { "x": 2,  "y": 2,  "width": 3, "height": 2 } },
+    "engineering_benches": { "name": "Engineering Benches", "type": "workshop", "color": "#6b5a3a", "rect": { "x": 10, "y": 5,  "width": 6, "height": 4 } },
+    "local_tavern":        { "name": "Local Tavern",        "type": "tavern",   "color": "#7a3d3d", "rect": { "x": 20, "y": 12, "width": 4, "height": 3 } },
+    "charlie_home":        { "name": "Charlie's Room",      "type": "home",     "color": "#4a6a5a", "rect": { "x": 2,  "y": 10, "width": 4, "height": 3 } },
+    "landlord_office":     { "name": "Landlord's Office",   "type": "office",   "color": "#5a4a6a", "rect": { "x": 10, "y": 13, "width": 5, "height": 3 } }
+  }
+}

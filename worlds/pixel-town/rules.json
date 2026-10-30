@@ -1,0 +1,91 @@
+{
+  "actions": {
+    "none": {
+      "description": "Do nothing special.",
+      "timing": "immediate",
+      "params": [],
+      "effects": []
+    },
+    "lend_money": {
+      "description": "Give another character cash (1 to 10 dollars). Use target and amount.",
+      "timing": "immediate",
+      "params": ["target", "amount"],
+      "limits": { "amount": { "min": 1, "max": 10, "default": 10 } },
+      "requires": [ { "path": "actor.cash", "op": "gte", "value": "$amount" } ],
+      "effects": [
+        { "transfer": { "from": "actor.cash", "to": "target.cash", "amount": "$amount" } },
+        { "log": "Financial Action: {actor} lent {target} ${amount}." }
+      ],
+      "fail_log": "Financial Action: {actor} wanted to lend money but cannot afford it."
+    },
+    "drink": {
+      "description": "Go to the tavern and drink for 15 dollars, which gets you wasted. Only works at Night and only if you still have at least 15 dollars after rent is paid.",
+      "timing": "deferred",
+      "only_slots": ["Night"],
+      "params": [],
+      "requires": [ { "path": "actor.cash", "op": "gte", "value": 15 } ],
+      "effects": [
+        { "add": { "path": "actor.cash", "amount": -15 } },
+        { "set": { "path": "actor.sobriety", "value": "Wasted" } },
+        { "move": { "who": "actor", "to": "local_tavern" } },
+        { "log": "Social Action: {actor} went to the tavern and got wasted." }
+      ],
+      "fail_log": "Social Action: {actor} tried to buy a drink but was rejected for being broke."
+    }
+  },
+  "events": [
+    {
+      "id": "payday",
+      "when": { "slots": ["Afternoon"] },
+      "phase": "main",
+      "for_each": "stat:daily_pay",
+      "branches": [
+        { "effects": [
+          { "transfer": { "from": "global.town_treasury", "to": "actor.cash", "amount": "@actor.daily_pay" } }
+        ] }
+      ]
+    },
+    {
+      "id": "rent",
+      "when": { "slots": ["Night"] },
+      "phase": "main",
+      "for_each": "stat:rent_due",
+      "branches": [
+        {
+          "if": [ { "path": "actor.cash", "op": "gte", "value": "@actor.rent_due" } ],
+          "effects": [
+            { "transfer": { "from": "actor.cash", "to": "global.town_treasury", "amount": "@actor.rent_due" } },
+            { "log": "Financial Action: {actor} successfully paid their landlord." },
+            { "set": { "path": "actor.rent_due", "value": 20 } }
+          ]
+        },
+        {
+          "effects": [
+            { "add": { "path": "actor.rent_due", "amount": 10 } },
+            { "log": "CRISIS: {actor} missed rent! Landlord added a $10 penalty." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wasted_to_hungover",
+      "when": { "slots": ["Night"] },
+      "phase": "cleanup",
+      "for_each": "stat:sobriety",
+      "branches": [
+        { "if": [ { "path": "actor.sobriety", "op": "eq", "value": "Wasted" } ],
+          "effects": [ { "set": { "path": "actor.sobriety", "value": "Hungover" } } ] }
+      ]
+    },
+    {
+      "id": "hangover_recovery",
+      "when": { "slots": ["Afternoon"] },
+      "phase": "cleanup",
+      "for_each": "stat:sobriety",
+      "branches": [
+        { "if": [ { "path": "actor.sobriety", "op": "eq", "value": "Hungover" } ],
+          "effects": [ { "set": { "path": "actor.sobriety", "value": "Sober" } } ] }
+      ]
+    }
+  ]
+}

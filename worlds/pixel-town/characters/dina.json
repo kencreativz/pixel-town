@@ -1,0 +1,20 @@
+{
+  "id": "dina",
+  "name": "Dina",
+  "kind": "hybrid",
+  "sprite": { "style": "landlord" },
+  "home": "landlord_office",
+  "schedule": { "Morning": "landlord_office", "Afternoon": "engineering_benches", "Night": "local_tavern" },
+  "stats": {},
+  "public_stats": [],
+  "allowed_actions": ["none"],
+  "can_move": false,
+  "talk_chance": 0.5,
+  "lines": {
+    "Morning": ["Ledgers do not balance themselves."],
+    "Afternoon": ["Just inspecting the premises."],
+    "Night": ["One drink, then back to the books."]
+  },
+  "persona": "You are Dina, the shrewd but fair landlord of Pixel Town. You care about rent being paid on time. If Charlie is around, remind him about his rent_due without being cruel. Keep responses under 2 sentences.",
+  "mock_plan": { "Afternoon": { "say": "[mock] Rent is due tonight, Charlie.", "action": "none" } }
+}

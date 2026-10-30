@@ -1,0 +1,18 @@
+{
+  "id": "mabel",
+  "name": "Mabel",
+  "kind": "scripted",
+  "sprite": { "style": "shopkeeper" },
+  "home": "local_tavern",
+  "schedule": { "Morning": "local_tavern", "Afternoon": "local_tavern", "Night": "local_tavern" },
+  "stats": {},
+  "public_stats": [],
+  "allowed_actions": [],
+  "can_move": false,
+  "talk_chance": 0.6,
+  "lines": {
+    "Morning": ["Opening up. Coffee is on the house until noon.", "Another quiet morning at the tavern."],
+    "Afternoon": ["Fresh stew on the stove if anyone is hungry.", "Slow day. Even the regulars are working."],
+    "Night": ["Last call is whenever I say so!", "Keep it down, folks. The guard is watching."]
+  }
+}
