@@ -102,7 +102,7 @@ class Simulation:
         for line in logs:
             self._system(line)
 
-    def _save(self):
+    def save(self):
         self.dir.mkdir(parents=True, exist_ok=True)
         tmp = self.state_path.with_suffix(".json.tmp")
         with open(tmp, "w", encoding="utf-8") as f:
@@ -243,7 +243,7 @@ class Simulation:
             clock["slot_index"] = 0
             clock["day"] += 1
 
-        self._save()
+        self.save()
         self._publish_state()
         await self._sleep(self.world.clock.slot_gap_seconds)
 
@@ -275,9 +275,11 @@ class Simulation:
 
     def pause(self) -> None:
         self.paused = True
+        self.hub.publish({"type": "notice", "level": "info", "text": "Simulation paused."})
 
     def resume(self) -> None:
         self.paused = False
+        self.hub.publish({"type": "notice", "level": "info", "text": "Simulation resumed."})
 
     def request_reset(self) -> None:
         self._reset_requested = True

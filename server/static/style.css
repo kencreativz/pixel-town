@@ -1,0 +1,47 @@
+body {
+  background: #14161c;
+  color: #e6e6e6;
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.layout { display: flex; }
+.map-wrap { flex: 1; position: relative; }
+.panel { width: 340px; flex: 0 0 340px; padding: 8px; box-sizing: border-box; }
+@media (max-width: 899px) {
+  .layout { flex-direction: column; }
+  .panel { width: auto; flex: none; }
+}
+canvas#map { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.overlay { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.loc-label, .name-label, .bubble { position: absolute; }
+.loc-label { font-size: 11px; color: #fff; text-shadow: 0 0 2px #000; padding: 2px 3px; }
+.name-label { font-size: 10px; transform: translateX(-50%); white-space: nowrap; text-shadow: 0 0 2px #000; }
+.bubble {
+  transform: translateX(-50%) translateY(-100%);
+  background: #f5f5f5;
+  color: #111;
+  white-space: pre;
+  font-size: 10px;
+  padding: 3px 5px;
+  border-radius: 4px;
+}
+.marker { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 3px; box-sizing: border-box; }
+.marker.scripted { background: #999; }
+.marker.hybrid { background: linear-gradient(90deg, #999 50%, transparent 50%); border: 1px solid #999; }
+.panel-head h1 { font-size: 18px; margin: 4px 0; }
+.clock-row { display: flex; align-items: center; gap: 8px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.dot.on { background: #2ecc71; }
+.dot.off { background: #e74c3c; }
+.banner { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; margin: 6px 0; border-radius: 4px; }
+.banner[hidden] { display: none; }
+.banner.warn { background: #b7791f; }
+.banner.info { background: #2b6cb0; }
+.global-row { font-size: 13px; }
+.card { background: #1e212b; border-radius: 4px; padding: 6px 8px; margin: 6px 0; font-size: 12px; }
+.card-head { display: flex; justify-content: space-between; }
+.badge { background: #333a4d; border-radius: 3px; padding: 0 5px; font-size: 11px; }
+.card-loc { color: #9a9a9a; }
+#chat { max-height: 240px; overflow-y: auto; font-size: 13px; margin: 8px 0; }
+.chat-line.system { color: #9a9a9a; font-style: italic; }
+#admin-error { color: #e74c3c; font-size: 12px; }

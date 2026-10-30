@@ -1,0 +1,12 @@
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY engine ./engine
+COPY server ./server
+COPY worlds ./worlds
+ENV RUNTIME_DIR=/app/runtime
+VOLUME ["/app/runtime"]
+EXPOSE 8000
+CMD ["sh", "-c", "uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

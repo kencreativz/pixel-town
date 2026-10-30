@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Pixel Town</title>
+</head>
+<body>
+  <main class="layout">
+    <section class="map-wrap" id="map-wrap">
+      <canvas id="map"></canvas>
+      <div class="overlay" id="overlay"></div>
+    </section>
+    <aside class="panel" id="panel">
+      <header class="panel-head">
+        <h1 id="world-name"></h1>
+        <div class="clock-row">
+          <span id="clock"></span>
+          <span id="conn" class="dot off"></span>
+        </div>
+        <select id="world-select" hidden></select>
+      </header>
+      <div id="banner" class="banner info" hidden>
+        <span id="banner-text"></span>
+        <button type="button" id="banner-dismiss" aria-label="Dismiss">x</button>
+      </div>
+      <div id="globals"></div>
+      <div id="characters"></div>
+      <div id="chat" role="log" aria-live="polite"></div>
+      <details id="admin">
+        <summary>Admin</summary>
+        <input type="password" id="admin-token" placeholder="Admin token" autocomplete="off">
+        <div class="admin-buttons">
+          <button type="button" data-action="pause">Pause</button>
+          <button type="button" data-action="resume">Resume</button>
+          <button type="button" data-action="reset">Reset</button>
+        </div>
+        <div id="admin-error"></div>
+      </details>
+    </aside>
+  </main>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
