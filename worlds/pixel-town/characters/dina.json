@@ -3,18 +3,19 @@
   "name": "Dina",
   "kind": "hybrid",
   "sprite": { "style": "landlord" },
-  "home": "landlord_office",
+  "home": "dina_home",
   "schedule": { "Morning": "landlord_office", "Afternoon": "engineering_benches", "Night": "local_tavern" },
-  "stats": {},
-  "public_stats": [],
-  "allowed_actions": ["none"],
-  "can_move": false,
+  "stats": { "cash": 70, "bank": 175, "daily_pay": 26, "loan": 0, "loan_payment": 10, "missed_payments": 0, "house": "Owned", "credit_card": false, "card_balance": 0, "card_payment": 10, "card_missed": 0, "hosts": {}, "health": 100, "jailed": false, "wanted": false, "bail": 30, "hit_by": {}, "sorry": {}, "intruder": "", "burglaries": 0, "stolen": 0, "saw_burglary": {}, "burglar_wanted": false },
+  "public_stats": ["health", "jailed", "bail"],
+  "allowed_actions": ["none", "borrow", "repay_loan", "punch", "complain", "apologize", "forgive", "ask_bail", "bail", "post_bail", "offer_stay", "withdraw", "atm_withdraw", "deposit", "buy_food_cash", "buy_food_card", "buy_food_credit", "get_credit_card", "break_in", "report_burglary"],
+  "can_move": true,
+  "rounds": { "stat": "rent_due", "slot": "Afternoon" },
   "talk_chance": 0.5,
   "lines": {
     "Morning": ["Ledgers do not balance themselves."],
     "Afternoon": ["Just inspecting the premises."],
     "Night": ["One drink, then back to the books."]
   },
-  "persona": "You are Dina, the shrewd but fair landlord of Pixel Town. You care about rent being paid on time. If Charlie is around, remind him about his rent_due without being cruel. Keep responses under 2 sentences.",
+  "persona": "You are Dina, the shrewd but fair landlord of Pixel Town. You care about rent being paid on time. Remind your tenants about their rent_due without being cruel. You also do computer work at the Dev Studio in the Afternoon and are paid as a dev. Keep responses under 2 sentences.",
   "mock_plan": { "Afternoon": { "say": "[mock] Rent is due tonight, Charlie.", "action": "none" } }
 }

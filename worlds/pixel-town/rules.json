@@ -7,23 +7,113 @@
       "effects": []
     },
     "lend_money": {
-      "description": "Give another character cash (1 to 10 dollars). Use target and amount.",
+      "description": "Lend another character cash (1 to 10 dollars). They will owe it to you. Use target and amount.",
       "timing": "immediate",
       "params": ["target", "amount"],
       "limits": { "amount": { "min": 1, "max": 10, "default": 10 } },
-      "requires": [ { "path": "actor.cash", "op": "gte", "value": "$amount" } ],
+      "requires": [
+        { "path": "actor.cash", "op": "gte", "value": "$amount" },
+        { "path": "target.owes.actor", "op": "gte", "value": 0 }
+      ],
       "effects": [
         { "transfer": { "from": "actor.cash", "to": "target.cash", "amount": "$amount" } },
-        { "log": "Financial Action: {actor} lent {target} ${amount}." }
+        { "add": { "path": "target.owes.actor", "amount": "$amount" } },
+        { "log": "Financial Action: {actor} lent {target} ${amount}." },
+        { "remember": { "who": "actor", "text": "I lent {target} ${amount}." } },
+        { "remember": { "who": "target", "text": "{actor} lent me ${amount}. I owe them." } }
       ],
-      "fail_log": "Financial Action: {actor} wanted to lend money but cannot afford it."
+      "fail_log": "Financial Action: {actor} wanted to lend money but could not."
+    },
+    "repay_money": {
+      "description": "Pay back money you owe another character (see your owes stat). Use target and amount.",
+      "timing": "immediate",
+      "params": ["target", "amount"],
+      "limits": { "amount": { "min": 1, "max": 50, "default": 10 } },
+      "requires": [
+        { "path": "actor.cash", "op": "gte", "value": "$amount" },
+        { "path": "actor.owes.target", "op": "gte", "value": "$amount" }
+      ],
+      "effects": [
+        { "transfer": { "from": "actor.cash", "to": "target.cash", "amount": "$amount" } },
+        { "sub": { "path": "actor.owes.target", "amount": "$amount" } },
+        { "log": "Financial Action: {actor} paid {target} back ${amount}." },
+        { "remember": { "who": "actor", "text": "I paid {target} back ${amount}." } },
+        { "remember": { "who": "target", "text": "{actor} paid me back ${amount}." } }
+      ],
+      "fail_log": "Financial Action: {actor} tried to pay {target} back but could not."
+    },
+    "borrow": {
+      "description": "Ask Tess at the Town Bank for a loan of 10 to 50 dollars in cash. The bank adds a $5 fee and takes loan_payment from your bank account every Morning. A missed payment adds a $5 late fee and a strike; after 3 strikes the bank refuses you. Your house is the collateral: on default (3 strikes) the bank takes it and you sleep in the Back Alley unless someone offers you a place to stay. Only one loan at a time. Only works at the Town Bank (set move_to to town_bank). Use amount. The bank is closed at Night.",
+      "timing": "immediate",
+      "only_slots": ["Morning", "Afternoon"],
+      "spot": "teller",
+      "params": ["amount"],
+      "limits": { "amount": { "min": 10, "max": 50, "default": 30 } },
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "town_bank" },
+        { "path": "actor.loan", "op": "eq", "value": 0 },
+        { "path": "actor.missed_payments", "op": "lt", "value": 3 },
+        { "path": "global.bank_vault", "op": "gte", "value": { "sum": ["$amount", "@global.vault_floor"] } }
+      ],
+      "effects": [
+        { "say": { "who": "actor", "text": "Hi Tess, I'd like to borrow ${amount}, please." } },
+        { "transfer": { "from": "global.bank_vault", "to": "actor.cash", "amount": "$amount" } },
+        { "add": { "path": "actor.loan", "amount": "$amount" } },
+        { "add": { "path": "actor.loan", "amount": 5 } },
+        { "log": "Financial Action: {actor} borrowed ${amount} from the bank." },
+        { "say": { "who": "char:tess", "text": "Approved, {actor}. You owe ${amount} plus a $5 fee, paid from your account each morning." } },
+        { "remember": { "who": "actor", "text": "I borrowed ${amount} from the bank (+$5 fee)." } }
+      ],
+      "fail_log": "Financial Action: {actor} asked the bank for a loan but was turned down."
+    },
+    "repay_loan": {
+      "description": "Ask Tess at the Town Bank to pay 1 to 50 dollars of your cash toward your bank loan early. Only works at the Town Bank (set move_to to town_bank). Use amount. The bank is closed at Night.",
+      "timing": "immediate",
+      "only_slots": ["Morning", "Afternoon"],
+      "spot": "teller",
+      "params": ["amount"],
+      "limits": { "amount": { "min": 1, "max": 50, "default": 20 } },
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "town_bank" },
+        { "path": "actor.loan", "op": "gte", "value": "$amount" },
+        { "path": "actor.cash", "op": "gte", "value": "$amount" }
+      ],
+      "effects": [
+        { "say": { "who": "actor", "text": "Hi Tess, I'd like to pay ${amount} toward my loan." } },
+        { "transfer": { "from": "actor.cash", "to": "global.bank_vault", "amount": "$amount" } },
+        { "sub": { "path": "actor.loan", "amount": "$amount" } },
+        { "log": "Financial Action: {actor} paid ${amount} toward their bank loan." },
+        { "say": { "who": "char:tess", "text": "Thanks, {actor}. ${amount} off your loan." } },
+        { "remember": { "who": "actor", "text": "I paid ${amount} toward my bank loan." } }
+      ],
+      "fail_log": "Financial Action: {actor} tried to pay toward a bank loan but could not."
+    },
+    "overtime": {
+      "description": "Night only. Work a paid overtime shift at the Dev Studio: $18 from the town treasury into your bank account. At Night the Town Bank, Dev Studio and Landlord's Office are closed; being inside one without overtime gets you in trouble with Greg. Set move_to to engineering_benches.",
+      "timing": "immediate",
+      "only_slots": ["Night"],
+      "params": [],
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "engineering_benches" },
+        { "path": "global.town_treasury", "op": "gte", "value": { "sum": [18, "@global.treasury_floor"] } }
+      ],
+      "effects": [
+        { "transfer": { "from": "global.town_treasury", "to": "actor.bank", "amount": 18 } },
+        { "set": { "path": "actor.overtime", "value": true } },
+        { "log": "Work Action: {actor} worked a paid overtime shift." },
+        { "remember": { "who": "actor", "text": "I worked a $18 overtime shift at the Dev Studio." } }
+      ],
+      "fail_log": "Work Action: {actor} wanted overtime but could not get a shift."
     },
     "drink": {
       "description": "Go to the tavern and drink for 15 dollars, which gets you wasted. Only works at Night and only if you still have at least 15 dollars after rent is paid.",
       "timing": "deferred",
       "only_slots": ["Night"],
       "params": [],
-      "requires": [ { "path": "actor.cash", "op": "gte", "value": 15 } ],
+      "requires": [
+        { "path": "actor.cash", "op": "gte", "value": 15 },
+        { "path": "actor.jailed", "op": "eq", "value": false }
+      ],
       "effects": [
         { "add": { "path": "actor.cash", "amount": -15 } },
         { "set": { "path": "actor.sobriety", "value": "Wasted" } },
@@ -31,6 +121,309 @@
         { "log": "Social Action: {actor} went to the tavern and got wasted." }
       ],
       "fail_log": "Social Action: {actor} tried to buy a drink but was rejected for being broke."
+    },
+    "withdraw": {
+      "description": "Ask Tess, the teller at the Town Bank, to take 1 to 50 dollars out of your bank account as cash. Only works at the Town Bank (set move_to to town_bank). Use amount. If someone is at the teller window you wait your turn. The bank is closed at Night.",
+      "timing": "immediate",
+      "only_slots": ["Morning", "Afternoon"],
+      "spot": "teller",
+      "params": ["amount"],
+      "limits": { "amount": { "min": 1, "max": 50, "default": 20 } },
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "town_bank" },
+        { "path": "actor.bank", "op": "gte", "value": "$amount" }
+      ],
+      "effects": [
+        { "say": { "who": "actor", "text": "Hi Tess, I'd like to withdraw ${amount}, please." } },
+        { "transfer": { "from": "actor.bank", "to": "actor.cash", "amount": "$amount" } },
+        { "log": "Financial Action: {actor} withdrew ${amount} at the teller." },
+        { "say": { "who": "char:tess", "text": "Here's your ${amount}, {actor}. Have a good one." } }
+      ],
+      "fail_log": "Financial Action: {actor} asked the teller for cash but could not withdraw."
+    },
+    "atm_withdraw": {
+      "description": "Use the ATM at the Town Bank to take 1 to 50 dollars out of your bank account as cash, without talking to anyone. Only works at the Town Bank (set move_to to town_bank). Use amount. If someone is at the ATM you wait your turn. The bank is closed at Night.",
+      "timing": "immediate",
+      "only_slots": ["Morning", "Afternoon"],
+      "spot": "atm",
+      "params": ["amount"],
+      "limits": { "amount": { "min": 1, "max": 50, "default": 20 } },
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "town_bank" },
+        { "path": "actor.bank", "op": "gte", "value": "$amount" }
+      ],
+      "effects": [
+        { "transfer": { "from": "actor.bank", "to": "actor.cash", "amount": "$amount" } },
+        { "log": "Financial Action: {actor} withdrew ${amount} from the ATM." }
+      ],
+      "fail_log": "Financial Action: {actor} tried the ATM but could not withdraw."
+    },
+    "punch": {
+      "description": "Punch someone (target). You walk up to them first. It takes 20 off their health. They can report you to Greg, who will lock you in the jail cell.",
+      "timing": "immediate",
+      "meet": "target",
+      "params": ["target"],
+      "requires": [ { "path": "target.location", "op": "eq", "value": "@actor.location" } ],
+      "effects": [
+        { "set": { "path": "target.health", "value": { "max": [0, { "sum": ["@target.health", -20] }] } } },
+        { "add": { "path": "target.hit_by.actor", "amount": 1 } },
+        { "log": "Fight: {actor} punched {target}!" },
+        { "remember": { "who": "target", "text": "{actor} punched me. I can complain to Greg about it (I will walk to him)." } },
+        { "remember": { "who": "actor", "text": "I punched {target}." } }
+      ],
+      "fail_log": "Fight: {actor} wanted to punch {target} but could not reach them."
+    },
+    "break_in": {
+      "description": "CRIME (burglary): break into someone's house (target = whose house) without knocking and steal up to $20 of their cash. Anyone who catches you inside can report you to Greg, who may lock you in the jail cell.",
+      "timing": "immediate",
+      "params": ["target"],
+      "break_into": "target",
+      "effects": [
+        { "add": { "path": "actor.stolen", "amount": { "min": [20, "@target.cash"] } } },
+        { "transfer": { "from": "target.cash", "to": "actor.cash", "amount": { "min": [20, "@target.cash"] } } },
+        { "add": { "path": "actor.burglaries", "amount": 1 } },
+        { "log": "Crime: {actor} broke into {target}'s house." },
+        { "remember": { "who": "actor", "text": "I broke into {target}'s house and stole some cash. If someone catches me inside, they can report me to Greg." } }
+      ],
+      "fail_log": "Crime: {actor} tried to break in but could not get inside."
+    },
+    "break_into_office": {
+      "description": "CRIME (burglary): break into Dina's Landlord's Office without her permission and steal up to $20 of her cash. Anyone who catches you inside can report you to Greg, who may lock you in the jail cell.",
+      "timing": "immediate",
+      "params": [],
+      "break_into": "landlord_office",
+      "effects": [
+        { "add": { "path": "actor.stolen", "amount": { "min": [20, "@target.cash"] } } },
+        { "transfer": { "from": "target.cash", "to": "actor.cash", "amount": { "min": [20, "@target.cash"] } } },
+        { "add": { "path": "actor.burglaries", "amount": 1 } },
+        { "log": "Crime: {actor} broke into the Landlord's Office." },
+        { "remember": { "who": "actor", "text": "I broke into the Landlord's Office and stole some of {target}'s cash. If someone catches me inside, they can report me to Greg." } }
+      ],
+      "fail_log": "Crime: {actor} tried to break into the Landlord's Office but could not get inside."
+    },
+    "report_burglary": {
+      "description": "Report to Greg, the guard, that you caught someone breaking in (target = the burglar; see your saw_burglary stat). You walk to Greg and tell him face to face; he will question them and decide.",
+      "timing": "immediate",
+      "meet": "greg",
+      "params": ["target"],
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "@char:greg.location" },
+        { "path": "actor.saw_burglary.target", "op": "gt", "value": 0 },
+        { "path": "target.burglar_wanted", "op": "eq", "value": false },
+        { "path": "target.jailed", "op": "eq", "value": false }
+      ],
+      "effects": [
+        { "set": { "path": "actor.saw_burglary.target", "value": 0 } },
+        { "set": { "path": "target.burglar_wanted", "value": true } },
+        { "say": { "who": "char:greg", "text": "I'll look into it, {actor}. I'll talk to {target}." } },
+        { "log": "Report: {actor} told Greg that {target} broke in." },
+        { "remember": { "who": "actor", "text": "I reported {target} to Greg for breaking in." } }
+      ],
+      "fail_log": "Report: {actor} tried to report {target} to Greg but could not."
+    },
+    "complain": {
+      "description": "Report to Greg, the guard, that someone punched you (target = who punched you; see your hit_by stat). You walk to Greg and tell him face to face; he will arrest them.",
+      "timing": "immediate",
+      "meet": "greg",
+      "params": ["target"],
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "@char:greg.location" },
+        { "path": "actor.hit_by.target", "op": "gt", "value": 0 },
+        { "path": "target.wanted", "op": "eq", "value": false },
+        { "path": "target.jailed", "op": "eq", "value": false }
+      ],
+      "effects": [
+        { "set": { "path": "actor.hit_by.target", "value": 0 } },
+        { "set": { "path": "target.wanted", "value": true } },
+        { "say": { "who": "char:greg", "text": "I'll bring {target} in, {actor}." } },
+        { "log": "Report: {actor} told Greg that {target} punched them." },
+        { "remember": { "who": "actor", "text": "I reported {target} to Greg for punching me." } }
+      ],
+      "fail_log": "Report: {actor} tried to report {target} to Greg but could not."
+    },
+    "apologize": {
+      "description": "Ask someone you punched (target) to forgive you. If they forgive you, you are free (out of jail too).",
+      "timing": "immediate",
+      "params": ["target"],
+      "effects": [
+        { "set": { "path": "actor.sorry.target", "value": 1 } },
+        { "log": "{actor} asked {target} for forgiveness." },
+        { "remember": { "who": "target", "text": "{actor} asked me to forgive them. I can forgive them (forgive), which frees them from jail." } }
+      ]
+    },
+    "forgive": {
+      "description": "Forgive someone (target) who asked you for forgiveness. It frees them from jail and drops your complaint.",
+      "timing": "immediate",
+      "params": ["target"],
+      "requires": [ { "path": "target.sorry.actor", "op": "gt", "value": 0 } ],
+      "effects": [
+        { "set": { "path": "target.sorry.actor", "value": 0 } },
+        { "set": { "path": "actor.hit_by.target", "value": 0 } },
+        { "set": { "path": "target.wanted", "value": false } },
+        { "set": { "path": "target.jailed", "value": false } },
+        { "log": "{actor} forgave {target}." },
+        { "remember": { "who": "actor", "text": "I forgave {target}." } },
+        { "remember": { "who": "target", "text": "{actor} forgave me." } }
+      ],
+      "fail_log": "{actor} wanted to forgive {target}, but they never asked."
+    },
+    "ask_bail": {
+      "description": "Only while you are in the jail cell. Ask someone (target) to pay your bail (your bail stat) and get you out.",
+      "timing": "immediate",
+      "params": ["target"],
+      "requires": [
+        { "path": "actor.jailed", "op": "eq", "value": true },
+        { "path": "target.jailed", "op": "eq", "value": false }
+      ],
+      "effects": [
+        { "log": "Jail: {actor} asked {target} to bail them out." },
+        { "remember": { "who": "target", "text": "{actor} is in the jail cell and asked me to pay their bail (their bail stat). Use bail." } }
+      ]
+    },
+    "bail": {
+      "description": "Pay someone's bail (target, who is in the jail cell) from your cash and get them out. You walk to the jail. The cost is their bail stat, paid to the town treasury; it goes up $20 each time bail is paid.",
+      "timing": "immediate",
+      "meet": "target",
+      "params": ["target"],
+      "requires": [
+        { "path": "target.jailed", "op": "eq", "value": true },
+        { "path": "target.location", "op": "eq", "value": "@actor.location" },
+        { "path": "actor.cash", "op": "gte", "value": "@target.bail" }
+      ],
+      "effects": [
+        { "say": { "who": "actor", "text": "I'm here to bail {target} out." } },
+        { "transfer": { "from": "actor.cash", "to": "global.town_treasury", "amount": "@target.bail" } },
+        { "add": { "path": "target.bail", "amount": 20 } },
+        { "set": { "path": "target.jailed", "value": false } },
+        { "log": "Jail: {actor} paid {target}'s bail." },
+        { "remember": { "who": "actor", "text": "I paid {target}'s bail." } },
+        { "remember": { "who": "target", "text": "{actor} paid my bail and got me out of jail." } }
+      ],
+      "fail_log": "Jail: {actor} could not bail {target} out."
+    },
+    "post_bail": {
+      "description": "Only while you are in the jail cell. Pay your own bail (your bail stat) from your cash and walk free. It goes up $20 each time bail is paid.",
+      "timing": "immediate",
+      "params": [],
+      "requires": [
+        { "path": "actor.jailed", "op": "eq", "value": true },
+        { "path": "actor.cash", "op": "gte", "value": "@actor.bail" }
+      ],
+      "effects": [
+        { "transfer": { "from": "actor.cash", "to": "global.town_treasury", "amount": "@actor.bail" } },
+        { "add": { "path": "actor.bail", "amount": 20 } },
+        { "set": { "path": "actor.jailed", "value": false } },
+        { "log": "Jail: {actor} paid their own bail." },
+        { "remember": { "who": "actor", "text": "I paid my own bail and got out of jail." } }
+      ],
+      "fail_log": "Jail: {actor} cannot afford their bail."
+    },
+    "offer_stay": {
+      "description": "Offer someone whose house the bank took (target) a place to stay: they sleep at your home and get their health back.",
+      "timing": "immediate",
+      "params": ["target"],
+      "requires": [ { "path": "target.house", "op": "eq", "value": "Bank-owned" } ],
+      "effects": [
+        { "set": { "path": "target.hosts.actor", "value": 1 } },
+        { "log": "Home: {actor} offered {target} a place to stay." },
+        { "remember": { "who": "actor", "text": "I offered {target} a place to stay at my home." } },
+        { "remember": { "who": "target", "text": "{actor} offered me a place to stay at their home." } }
+      ]
+    },
+    "deposit": {
+      "description": "Ask Tess, the teller at the Town Bank, to put 1 to 50 dollars of your cash into your bank account. Only works at the Town Bank (set move_to to town_bank). Use amount. If someone is at the teller window you wait your turn. The bank is closed at Night.",
+      "timing": "immediate",
+      "only_slots": ["Morning", "Afternoon"],
+      "spot": "teller",
+      "params": ["amount"],
+      "limits": { "amount": { "min": 1, "max": 50, "default": 20 } },
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "town_bank" },
+        { "path": "actor.cash", "op": "gte", "value": "$amount" }
+      ],
+      "effects": [
+        { "say": { "who": "actor", "text": "Hi Tess, I'd like to deposit ${amount}, please." } },
+        { "transfer": { "from": "actor.cash", "to": "actor.bank", "amount": "$amount" } },
+        { "log": "Financial Action: {actor} deposited ${amount} at the bank." },
+        { "say": { "who": "char:tess", "text": "Got it, {actor}. ${amount} is safe in your account." } }
+      ],
+      "fail_log": "Financial Action: {actor} tried to deposit but could not."
+    },
+    "buy_food_cash": {
+      "description": "Buy food at the Grocery Store for $10 cash: +15 health (up to 100). Only works at the Grocery Store (set move_to to grocery). Two checkout lanes; if both are busy you wait your turn.",
+      "timing": "immediate",
+      "spot": "checkout",
+      "params": [],
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "grocery" },
+        { "path": "actor.cash", "op": "gte", "value": 10 }
+      ],
+      "effects": [
+        { "transfer": { "from": "actor.cash", "to": "global.town_treasury", "amount": 10 } },
+        { "set": { "path": "actor.health", "value": { "min": [100, { "sum": ["@actor.health", 15]}] } } },
+        { "log": "Shopping: {actor} bought food with cash." }
+      ],
+      "fail_log": "Shopping: {actor} tried to buy food with cash but could not."
+    },
+    "buy_food_card": {
+      "description": "Buy food at the Grocery Store for $10 with your debit card, paid from your bank account: +15 health (up to 100). Only works at the Grocery Store (set move_to to grocery). Two checkout lanes; if both are busy you wait your turn.",
+      "timing": "immediate",
+      "spot": "checkout",
+      "params": [],
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "grocery" },
+        { "path": "actor.bank", "op": "gte", "value": 10 }
+      ],
+      "effects": [
+        { "transfer": { "from": "actor.bank", "to": "global.town_treasury", "amount": 10 } },
+        { "set": { "path": "actor.health", "value": { "min": [100, { "sum": ["@actor.health", 15]}] } } },
+        { "log": "Shopping: {actor} bought food with their debit card." }
+      ],
+      "fail_log": "Shopping: {actor} tried to pay for food by card but the card was declined."
+    },
+    "buy_food_credit": {
+      "description": "Buy food at the Grocery Store for $10 on your credit card (needs credit_card true; limit $200 card_balance): +15 health (up to 100). The bank takes card_payment from your bank account every Morning; missed payments add a $5 fee and a strike, and on the 3rd strike the bank takes your house. Only works at the Grocery Store (set move_to to grocery).",
+      "timing": "immediate",
+      "spot": "checkout",
+      "params": [],
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "grocery" },
+        { "path": "actor.credit_card", "op": "eq", "value": true },
+        { "path": "actor.card_balance", "op": "lte", "value": 190 },
+        { "path": "global.bank_vault", "op": "gte", "value": 10 }
+      ],
+      "effects": [
+        { "transfer": { "from": "global.bank_vault", "to": "global.town_treasury", "amount": 10 } },
+        { "add": { "path": "actor.card_balance", "amount": 10 } },
+        { "set": { "path": "actor.health", "value": { "min": [100, { "sum": ["@actor.health", 15]}] } } },
+        { "log": "Shopping: {actor} bought food on their credit card." }
+      ],
+      "fail_log": "Shopping: {actor} tried to pay for food on credit but the card was declined."
+    },
+    "get_credit_card": {
+      "description": "Ask Tess at the Town Bank for a credit card. Needs at least $200 in your bank account. The card has a $200 limit and only works at the Grocery Store (buy_food_credit). Your house is the collateral: 3 missed card payments and the bank takes it. Only works at the Town Bank (set move_to to town_bank). The bank is closed at Night. Refused while you have a pending penalty: overdue rent, a missed loan or card payment, or you are wanted or jailed.",
+      "timing": "immediate",
+      "only_slots": ["Morning", "Afternoon"],
+      "spot": "teller",
+      "params": [],
+      "requires": [
+        { "path": "actor.location", "op": "eq", "value": "town_bank" },
+        { "path": "actor.credit_card", "op": "eq", "value": false },
+        { "path": "actor.card_missed", "op": "eq", "value": 0 },
+        { "path": "actor.missed_payments", "op": "eq", "value": 0, "default": 0 },
+        { "path": "actor.rent_due", "op": "lte", "value": 20, "default": 0 },
+        { "path": "actor.wanted", "op": "eq", "value": false },
+        { "path": "actor.jailed", "op": "eq", "value": false },
+        { "path": "actor.bank", "op": "gte", "value": 200 }
+      ],
+      "effects": [
+        { "say": { "who": "actor", "text": "Hi Tess, I'd like a credit card, please." } },
+        { "set": { "path": "actor.credit_card", "value": true } },
+        { "log": "Financial Action: {actor} got a credit card from the bank." },
+        { "say": { "who": "char:tess", "text": "Approved, {actor}. Your card has a $200 limit at the Grocery Store." } },
+        { "remember": { "who": "actor", "text": "I got a credit card ($200 limit, Grocery Store only). The bank takes card_payment each morning; 3 missed payments and it takes my house." } }
+      ],
+      "fail_log": "Financial Action: {actor} asked the bank for a credit card but was turned down."
     }
   },
   "events": [
@@ -40,9 +433,36 @@
       "phase": "main",
       "for_each": "stat:daily_pay",
       "branches": [
-        { "effects": [
-          { "transfer": { "from": "global.town_treasury", "to": "actor.cash", "amount": "@actor.daily_pay" } }
-        ] }
+        {
+          "if": [ { "path": "global.town_treasury", "op": "gte", "value": { "sum": ["@actor.daily_pay", "@global.treasury_floor"] } } ],
+          "effects": [
+            { "transfer": { "from": "global.town_treasury", "to": "actor.bank", "amount": "@actor.daily_pay" } }
+          ]
+        },
+        {
+          "effects": [
+            { "log": "CRISIS: the town treasury is at its minimum and could not pay {actor} today." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cash_payday",
+      "when": { "slots": ["Afternoon"] },
+      "phase": "main",
+      "for_each": "stat:cash_pay",
+      "branches": [
+        {
+          "if": [ { "path": "global.town_treasury", "op": "gte", "value": { "sum": ["@actor.cash_pay", "@global.treasury_floor"] } } ],
+          "effects": [
+            { "transfer": { "from": "global.town_treasury", "to": "actor.cash", "amount": "@actor.cash_pay" } }
+          ]
+        },
+        {
+          "effects": [
+            { "log": "CRISIS: the town treasury is at its minimum and could not pay {actor} today." }
+          ]
+        }
       ]
     },
     {
@@ -54,7 +474,8 @@
         {
           "if": [ { "path": "actor.cash", "op": "gte", "value": "@actor.rent_due" } ],
           "effects": [
-            { "transfer": { "from": "actor.cash", "to": "global.town_treasury", "amount": "@actor.rent_due" } },
+            { "transfer": { "from": "actor.cash", "to": "char:dina.bank", "amount": 5 } },
+            { "transfer": { "from": "actor.cash", "to": "global.town_treasury", "amount": { "sum": ["@actor.rent_due", -5] } } },
             { "log": "Financial Action: {actor} successfully paid their landlord." },
             { "set": { "path": "actor.rent_due", "value": 20 } }
           ]
@@ -62,7 +483,108 @@
         {
           "effects": [
             { "add": { "path": "actor.rent_due", "amount": 10 } },
-            { "log": "CRISIS: {actor} missed rent! Landlord added a $10 penalty." }
+            { "log": "CRISIS: {actor} missed rent! Landlord added a $10 penalty." },
+            { "remember": { "who": "actor", "text": "I missed rent. The landlord added a $10 penalty." } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "loan_payment",
+      "when": { "slots": ["Morning"] },
+      "phase": "main",
+      "for_each": "stat:loan",
+      "branches": [
+        { "if": [ { "path": "actor.loan", "op": "eq", "value": 0 } ], "effects": [] },
+        {
+          "if": [
+            { "path": "actor.loan", "op": "lte", "value": "@actor.loan_payment" },
+            { "path": "actor.bank", "op": "gte", "value": "@actor.loan" }
+          ],
+          "effects": [
+            { "transfer": { "from": "actor.bank", "to": "global.bank_vault", "amount": "@actor.loan" } },
+            { "set": { "path": "actor.loan", "value": 0 } },
+            { "log": "Financial Action: {actor} paid off their bank loan." },
+            { "remember": { "who": "actor", "text": "I paid off my bank loan." } }
+          ]
+        },
+        {
+          "if": [
+            { "path": "actor.loan", "op": "gt", "value": "@actor.loan_payment" },
+            { "path": "actor.bank", "op": "gte", "value": "@actor.loan_payment" }
+          ],
+          "effects": [
+            { "transfer": { "from": "actor.bank", "to": "global.bank_vault", "amount": "@actor.loan_payment" } },
+            { "sub": { "path": "actor.loan", "amount": "@actor.loan_payment" } },
+            { "log": "Financial Action: {actor} made a loan payment." }
+          ]
+        },
+        {
+          "if": [ { "path": "actor.missed_payments", "op": "gte", "value": 2 } ],
+          "effects": [
+            { "add": { "path": "actor.missed_payments", "amount": 1 } },
+            { "set": { "path": "actor.loan", "value": 0 } },
+            { "set": { "path": "actor.house", "value": "Bank-owned" } },
+            { "log": "CRISIS: {actor} missed a loan payment and is now in default. The bank took their house." },
+            { "remember": { "who": "actor", "text": "I defaulted on my loan. The bank took my house; I sleep in the Back Alley now unless someone offers me a place to stay." } }
+          ]
+        },
+        {
+          "effects": [
+            { "add": { "path": "actor.missed_payments", "amount": 1 } },
+            { "add": { "path": "actor.loan", "amount": 5 } },
+            { "log": "CRISIS: {actor} missed a loan payment! $5 late fee added." },
+            { "remember": { "who": "actor", "text": "I missed a bank loan payment. $5 late fee and a strike." } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "card_payment",
+      "when": { "slots": ["Morning"] },
+      "phase": "main",
+      "for_each": "stat:card_balance",
+      "branches": [
+        { "if": [ { "path": "actor.card_balance", "op": "eq", "value": 0 } ], "effects": [] },
+        {
+          "if": [
+            { "path": "actor.card_balance", "op": "lte", "value": "@actor.card_payment" },
+            { "path": "actor.bank", "op": "gte", "value": "@actor.card_balance" }
+          ],
+          "effects": [
+            { "transfer": { "from": "actor.bank", "to": "global.bank_vault", "amount": "@actor.card_balance" } },
+            { "set": { "path": "actor.card_balance", "value": 0 } },
+            { "log": "Financial Action: {actor} paid off their credit card." }
+          ]
+        },
+        {
+          "if": [
+            { "path": "actor.card_balance", "op": "gt", "value": "@actor.card_payment" },
+            { "path": "actor.bank", "op": "gte", "value": "@actor.card_payment" }
+          ],
+          "effects": [
+            { "transfer": { "from": "actor.bank", "to": "global.bank_vault", "amount": "@actor.card_payment" } },
+            { "sub": { "path": "actor.card_balance", "amount": "@actor.card_payment" } },
+            { "log": "Financial Action: {actor} made a credit card payment." }
+          ]
+        },
+        {
+          "if": [ { "path": "actor.card_missed", "op": "gte", "value": 2 } ],
+          "effects": [
+            { "add": { "path": "actor.card_missed", "amount": 1 } },
+            { "set": { "path": "actor.card_balance", "value": 0 } },
+            { "set": { "path": "actor.credit_card", "value": false } },
+            { "set": { "path": "actor.house", "value": "Bank-owned" } },
+            { "log": "CRISIS: {actor} missed a credit card payment and is now in default. The bank took their house." },
+            { "remember": { "who": "actor", "text": "I defaulted on my credit card. The bank took my house; I sleep in the Back Alley now unless someone offers me a place to stay." } }
+          ]
+        },
+        {
+          "effects": [
+            { "add": { "path": "actor.card_missed", "amount": 1 } },
+            { "add": { "path": "actor.card_balance", "amount": 5 } },
+            { "log": "CRISIS: {actor} missed a credit card payment! $5 late fee added." },
+            { "remember": { "who": "actor", "text": "I missed a credit card payment. $5 late fee and a strike." } }
           ]
         }
       ]
@@ -78,6 +600,43 @@
       ]
     },
     {
+      "id": "overtime_reset",
+      "when": { "slots": ["Night"] },
+      "phase": "cleanup",
+      "for_each": "stat:overtime",
+      "branches": [
+        { "effects": [ { "set": { "path": "actor.overtime", "value": false } } ] }
+      ]
+    },
+    {
+      "id": "health_sleep",
+      "when": { "slots": ["Night"] },
+      "phase": "cleanup",
+      "for_each": "stat:health",
+      "branches": [
+        { "if": [ { "path": "actor.jailed", "op": "eq", "value": true } ], "effects": [] },
+        {
+          "if": [
+            { "path": "actor.house", "op": "eq", "value": "Bank-owned" },
+            { "path": "actor.hosts", "op": "eq", "value": {} },
+            { "path": "actor.health", "op": "gte", "value": 10 }
+          ],
+          "effects": [
+            { "sub": { "path": "actor.health", "amount": 10 } },
+            { "remember": { "who": "actor", "text": "I slept in the Back Alley. My health is dropping." } }
+          ]
+        },
+        {
+          "if": [
+            { "path": "actor.house", "op": "eq", "value": "Bank-owned" },
+            { "path": "actor.hosts", "op": "eq", "value": {} }
+          ],
+          "effects": [ { "set": { "path": "actor.health", "value": 0 } } ]
+        },
+        { "effects": [ { "set": { "path": "actor.health", "value": 100 } } ] }
+      ]
+    },
+    {
       "id": "hangover_recovery",
       "when": { "slots": ["Afternoon"] },
       "phase": "cleanup",
@@ -87,5 +646,93 @@
           "effects": [ { "set": { "path": "actor.sobriety", "value": "Sober" } } ] }
       ]
     }
-  ]
+  ],
+  "violations": [
+    {
+      "id": "missed_rent",
+      "text": "missed rent, so the landlord added a penalty",
+      "say": "Excuse me, {actor}, your rent is overdue. Please settle up with Dina before it grows.",
+      "if": [ { "path": "actor.rent_due", "op": "gt", "value": 20 } ]
+    },
+    {
+      "id": "missed_loan",
+      "text": "missed a bank loan payment",
+      "say": "Excuse me, {actor}, the bank says a loan payment was missed. Please sort it out when you can.",
+      "if": [
+        { "path": "actor.loan", "op": "gt", "value": 0 },
+        { "path": "actor.missed_payments", "op": "gt", "value": 0 }
+      ]
+    },
+    {
+      "id": "wasted",
+      "text": "is drunk and loud",
+      "say": "{actor}, I'm sorry, but you've had too much. Please keep it down.",
+      "if": [ { "path": "actor.sobriety", "op": "eq", "value": "Wasted" } ]
+    },
+    {
+      "id": "hungover",
+      "text": "is hungover and slacking",
+      "say": "Morning, {actor}. You look rough, but please try to get some work done.",
+      "if": [ { "path": "actor.sobriety", "op": "eq", "value": "Hungover" } ]
+    },
+    {
+      "id": "after_hours",
+      "text": "is inside a place that is closed at Night, without overtime",
+      "say": "Sorry, {actor}, this place is closed at night. Please head home.",
+      "if": [
+        { "slot_in": ["Night"] },
+        { "path": "actor.location", "op": "in", "value": ["town_bank", "engineering_benches", "landlord_office"] },
+        { "path": "actor.overtime", "op": "ne", "value": true }
+      ]
+    },
+    {
+      "id": "assault",
+      "text": "was reported for punching someone; you are arresting them and taking them to the jail cell",
+      "say": "{actor}, you're under arrest for assault. You're coming with me to the cell.",
+      "if": [ { "path": "actor.wanted", "op": "eq", "value": true } ],
+      "effects": [
+        { "set": { "path": "actor.wanted", "value": false } },
+        { "set": { "path": "actor.jailed", "value": true } },
+        { "move": { "who": "actor", "to": "jail" } },
+        { "log": "Jail: Greg locked {actor} in the jail cell." },
+        { "remember": { "who": "actor", "text": "Greg locked me in the jail cell for punching someone. Ways out: apologize to who I punched and hope they forgive me, pay my own bail (post_bail), or ask someone to bail me out (ask_bail)." } }
+      ]
+    },
+    {
+      "id": "burglary",
+      "text": "was reported for burglary (breaking into a home or the Landlord's Office); ask them what happened",
+      "say": "{actor}, I had a report of a break-in. Please tell me what happened.",
+      "if": [ { "path": "actor.burglar_wanted", "op": "eq", "value": true } ],
+      "verdict": {
+        "jail_if": [
+          [ { "path": "actor.stolen", "op": "gt", "value": 0 } ],
+          [ { "path": "actor.burglaries", "op": "gte", "value": 2 } ]
+        ],
+        "jail": [
+          { "set": { "path": "actor.burglar_wanted", "value": false } },
+          { "set": { "path": "actor.stolen", "value": 0 } },
+          { "set": { "path": "actor.jailed", "value": true } },
+          { "move": { "who": "actor", "to": "jail" } },
+          { "log": "Jail: Greg locked {actor} in the jail cell for burglary." },
+          { "remember": { "who": "actor", "text": "Greg locked me in the jail cell for burglary. Ways out: pay my own bail (post_bail), or ask someone to bail me out (ask_bail)." } }
+        ],
+        "warn": [
+          { "set": { "path": "actor.burglar_wanted", "value": false } },
+          { "set": { "path": "actor.stolen", "value": 0 } },
+          { "log": "Warning: Greg let {actor} off with a warning for burglary." },
+          { "remember": { "who": "actor", "text": "Greg let me off with a warning for breaking in. Next time he may jail me." } }
+        ]
+      }
+    }
+  ],
+  "aid": {
+    "if": [ { "path": "actor.health", "op": "lte", "value": 20 } ],
+    "say": "{actor}, {target} is badly hurt. Please go and help them.",
+    "effects": [
+      { "add": { "path": "target.health", "amount": 30 } },
+      { "log": "Aid: {actor} helped {target} back on their feet." },
+      { "remember": { "who": "actor", "text": "Greg asked me to help {target}, and I did." } },
+      { "remember": { "who": "target", "text": "{actor} helped me when I was badly hurt." } }
+    ]
+  }
 }

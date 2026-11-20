@@ -19,6 +19,14 @@ Check the worlds and run the tests (offline, no network):
     python -m engine.validate        # prints an "OK: <world_id> (...)" line per world
     pytest -q
 
+Quick start: `bin/pixeltown mock` or `bin/pixeltown real`. `real` takes `GEMINI_API_KEY` from the shell, else from
+`.env.development.local` or `.env` (both git-ignored; a deliberate deviation from "never in a file in this repo"),
+else asks for it; it runs the clock 5× slower with a 30 calls/hour cap. `bin/pixeltown local` uses a local model
+through Ollama (start the Ollama app first; model from `OLLAMA_MODEL`, default `ssfdre38/gemma4-turbo`). `real` and `local`
+pause while no browser tab is open. To type just
+`pixeltown`, add the folder to your PATH once:
+`echo 'export PATH="$HOME/Documents/personal/practice/pixel-town/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`
+
 Mock mode (no Gemini calls, no key needed; characters use their `mock_plan`):
 
     LLM_MODE=mock uvicorn server.app:app --port 8000
@@ -39,14 +47,18 @@ After **any** change run `python -m engine.validate` and fix errors before start
 | **Add a character** | Copy a file in `characters/`, set a new `id` (filename must equal `id`), `name`, `kind`, `sprite`, `home`, `schedule`, `stats`, `persona` (or `lines` for NPCs). Optionally add the id to `turn_order`. Restart the server (existing worlds keep their saved state; the new character is added automatically). |
 | **Add a free NPC** | Same, with `"kind": "scripted"`, `lines`, and `talk_chance`. It costs **no** Gemini calls. |
 | **Add an NPC that sometimes thinks** | `"kind": "hybrid"` with both `persona` and `lines`. Gemini is used only when another `llm`/`hybrid` character shares its location. |
-| **Give a character a salary / rent** | Add `daily_pay` / `rent_due` to its `stats`. The `payday` and `rent` events pick it up automatically. |
-| **Add a location (office, shop, …)** | Add an entry to `locations` in `world.json` (unique id, `type`, `color`, a `rect` inside the map that overlaps nothing). Reference it from characters' `home` / `schedule`. |
+| **Give a character a salary / rent** | Add `daily_pay` / `rent_due` to its `stats`. The `payday` and `rent` events pick it up automatically. `payday` pays into the character's `bank` stat (give it one), so also allow `withdraw` / `deposit`: they work only at the Town Bank (`town_bank`), so the character needs `can_move: true`. |
+| **Add a guard / a rule people can break** | Give the guard `"guard": true` and `can_move: true`. Guards skip normal turns. After each slot they walk up to everyone who matches an entry in `violations` in `rules.json` (`id`, `text` for the LLM, fallback `say`, `if` conditions) and tell them off. |
+| **Add a landlord / rounds** | Give the character `"rounds": { "stat": "rent_due", "slot": "Afternoon" }` and `can_move: true`. In that slot it skips its normal turn and walks up to each awake character with that stat, one by one, and talks with them face to face. |
+| **Conversations** | Anyone spoken to face to face answers. The two take turns (up to 6 replies) until one of them ends the talk. |
+| **Local-mode-only stats** | `local_stats` in a character file merge into its `stats` only with `LLM_MODE=ollama` (e.g. rent for everyone but the landlord; `cash_pay` pays straight into cash). |
+| **Add a location (office, shop, …)** | Add an entry to `locations` in `world.json` (unique id, `type`, `color`, a `rect` inside the map that overlaps nothing). Reference it from characters' `home` / `schedule`. Add `map.roads` rects that reach its two doors (sprites walk only on roads outside rooms). |
 | **Make the map bigger** | Change `map.width` / `map.height` in `world.json`. The renderer adapts. |
 | **Create another town** | Copy `worlds/pixel-town/` to `worlds/<new-id>/`, change `id`/`name`, edit contents. It appears in the world selector. |
 | **Change money amounts / add a rule** | Edit `rules.json` (actions and events use the DSL in Section A3). Add the new action id to the characters' `allowed_actions`. |
 | **Change a character's personality** | Edit `persona`. |
 | **Use a cheaper model for a minor role** | Set `"model": "gemini-2.5-flash-lite"` (or any valid model id) on that character. |
-| **Speed up / slow down time** | Edit `clock.turn_gap_seconds` / `slot_gap_seconds`, or set `TIME_SCALE`. |
+| **Speed up / slow down time** | Edit `clock.turn_gap_seconds` / `slot_gap_seconds`, or set `TIME_SCALE`. `clock.walk_seconds_per_tile` is how long the simulation waits per tile for sprites to walk before they talk and act (0 = no wait). |
 | **Add a time slot** | Add it to `clock.slots`; add schedule entries, events, and a time-of-day tint mapping if desired. |
 
 **Cost guide:** Gemini calls per day ≈ (#`llm` characters + #active `hybrid`) × (#slots). Keep most of the cast `scripted` or `hybrid`; the validator prints the estimate.

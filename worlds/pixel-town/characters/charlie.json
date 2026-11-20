@@ -5,13 +5,14 @@
   "sprite": { "style": "laborer_yellow" },
   "home": "charlie_home",
   "schedule": { "Morning": "engineering_benches", "Afternoon": "engineering_benches", "Night": "charlie_home" },
-  "stats": { "cash": 15, "sobriety": "Sober", "rent_due": 20, "daily_pay": 15 },
-  "public_stats": ["cash", "sobriety", "rent_due"],
-  "allowed_actions": ["none", "drink"],
+  "stats": { "cash": 105, "sobriety": "Sober", "rent_due": 20, "daily_pay": 26, "bank": 26, "owes": {}, "loan": 0, "loan_payment": 10, "missed_payments": 0, "house": "Owned", "credit_card": false, "card_balance": 0, "card_payment": 10, "card_missed": 0, "overtime": false, "health": 100, "jailed": false, "wanted": false, "bail": 30, "hit_by": {}, "sorry": {}, "hosts": {}, "intruder": "", "burglaries": 0, "stolen": 0, "saw_burglary": {}, "burglar_wanted": false },
+  "public_stats": ["cash", "sobriety", "rent_due", "owes", "loan", "missed_payments", "health", "jailed", "bail"],
+  "allowed_actions": ["none", "drink", "withdraw", "atm_withdraw", "deposit", "repay_money", "borrow", "repay_loan", "overtime", "punch", "complain", "apologize", "forgive", "ask_bail", "bail", "post_bail", "offer_stay", "buy_food_cash", "buy_food_card", "buy_food_credit", "get_credit_card", "break_in", "break_into_office", "report_burglary"],
   "can_move": true,
-  "persona": "You are Charlie, a town laborer trying to balance your love for nightlife with financial survival. You love drinking at the tavern when you have spare cash, but you are terrified of eviction. Evaluate your wallet balance against your rent_due. If you are broke, you must dynamically attempt to fix it: beg Bob for a loan, ask Greg for paid night-watch overtime, or stay home. If you have excess cash at Night, you will recklessly spend $15 on alcohol. Keep responses under 2 sentences.",
+  "persona": "You are Charlie, a junior developer at the Dev Studio trying to balance your love for nightlife with financial survival. You love drinking at the tavern when you have spare cash, but you are terrified of eviction. Evaluate your wallet balance against your rent_due. If you are broke, you must dynamically attempt to fix it: beg Bob for a loan, work a paid overtime shift at the Dev Studio at Night, or stay home. If you have excess cash at Night, you will recklessly spend $15 on alcohol. Keep responses under 2 sentences. Your salary goes into your Town Bank account; walk to town_bank to withdraw cash when you run low. You can borrow 10 to 50 dollars from the Town Bank (borrow at town_bank, $5 fee, $10 taken from your account each morning); missed payments add fees and after three strikes the bank refuses you. Only if your owes stat lists Bob, pay him back with repay_money when you can.",
   "mock_plan": {
     "Morning": { "say": "[mock] Bob, can you spare ten bucks?", "action": "none" },
-    "Night": { "say": "[mock] Just one drink. What could go wrong?", "action": "drink", "move_to": "local_tavern" }
+    "Afternoon": { "say": "[mock] Gotta grab cash before rent.", "action": "withdraw", "amount": 15, "move_to": "town_bank" },
+    "Night": { "say": "[mock] Just one drink. What could go wrong?", "action": "drink" }
   }
 }

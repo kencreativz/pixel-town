@@ -51,6 +51,8 @@ export function createHud(def, worlds, worldId, onControl) {
     return div;
   }
 
+  const opened = new Set(); // character ids whose card the viewer unfolded (cards start folded)
+
   function render(state) {
     const { day, slot } = state.clock;
     $("clock").textContent = `${ICONS[slot] || "🕒"} Day ${day} — ${slot}`;
@@ -68,9 +70,14 @@ export function createHud(def, worlds, worldId, onControl) {
     cards.replaceChildren();
     for (const c of def.characters) {
       const cs = state.characters[c.id];
-      const card = document.createElement("div");
+      const card = document.createElement("details");
       card.className = "card";
-      const head = document.createElement("div");
+      card.open = opened.has(c.id);
+      card.addEventListener("toggle", () => {
+        if (card.open) opened.add(c.id);
+        else opened.delete(c.id);
+      });
+      const head = document.createElement("summary");
       head.className = "card-head";
       const nm = document.createElement("strong");
       nm.textContent = c.name;
@@ -86,7 +93,8 @@ export function createHud(def, worlds, worldId, onControl) {
         card.appendChild(loc);
         for (const [k, v] of Object.entries(cs.stats)) {
           const row = document.createElement("div");
-          row.textContent = `${k}: ${v}`;
+          const list = (o) => (k === "owes" ? Object.entries(o).map(([id, n]) => `${id} $${n}`) : Object.keys(o));
+          row.textContent = `${k}: ${v && typeof v === "object" ? list(v).join(", ") || "none" : v}`;
           card.appendChild(row);
         }
       }

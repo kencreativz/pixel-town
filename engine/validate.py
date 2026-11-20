@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from .models import Character, Rules, World
 
 WORLDS_DIR = Path("worlds")
-KNOWN_STYLES = {"security_guard", "engineer_blue", "laborer_yellow", "shopkeeper", "landlord"}
+KNOWN_STYLES = {"security_guard", "engineer_blue", "laborer_yellow", "shopkeeper", "landlord", "teller", "programmer"}
 MAX_LLM = 8
 
 
@@ -27,6 +27,11 @@ def _load(path, model, errors):
 
 
 def _value_refs(value, where, params, char_ids, errors):
+    lists = [value[k] for k in ("sum", "max", "min") if isinstance(value, dict) and isinstance(value.get(k), list)]
+    if lists:
+        for item in lists[0]:
+            _value_refs(item, where, params, char_ids, errors)
+        return
     if not isinstance(value, str):
         return
     if value.startswith("$"):
@@ -56,8 +61,8 @@ def _check_conditions(conds, where, params, char_ids, errors):
 
 def _check_effects(effects, where, params, char_ids, location_ids, errors):
     for effect in effects:
-        if "add" in effect:
-            spec = effect["add"]
+        if "add" in effect or "sub" in effect:
+            spec = effect["add"] if "add" in effect else effect["sub"]
             _path_ref(spec.get("path"), where, char_ids, errors, write=True)
             _value_refs(spec.get("amount"), where, params, char_ids, errors)
         elif "set" in effect:
@@ -72,6 +77,13 @@ def _check_effects(effects, where, params, char_ids, location_ids, errors):
         elif "move" in effect:
             if effect["move"].get("to") not in location_ids:
                 errors.append(f"{where}: move.to '{effect['move'].get('to')}' is not a known location")
+        elif "say" in effect or "remember" in effect:
+            kind = "say" if "say" in effect else "remember"
+            who = effect[kind].get("who")
+            if who not in ("actor", "target") and not (isinstance(who, str) and who.startswith("char:")):
+                errors.append(f"{where}: {kind}.who must be 'actor', 'target' or 'char:<id>'")
+            else:
+                _path_ref(f"{who}.x", where, char_ids, errors)
 
 
 def _overlap(a, b):
@@ -114,11 +126,23 @@ def validate_world(path):
         r = loc.rect
         if r.x < 0 or r.y < 0 or r.x + r.width > world.map.width or r.y + r.height > world.map.height:
             errors.append(f"world.json: location '{lid}' rect is outside the map")
+        if loc.owner is not None and loc.owner not in char_ids:
+            errors.append(f"world.json: location '{lid}' owner '{loc.owner}' is not a known character")
+    if world.shelter is not None and world.shelter not in location_ids:
+        errors.append(f"world.json: shelter '{world.shelter}' is not a known location")
+    if world.jail is not None and world.jail not in location_ids:
+        errors.append(f"world.json: jail '{world.jail}' is not a known location")
     items = list(world.locations.items())
     for i, (aid, a) in enumerate(items):
         for bid, b in items[i + 1:]:
             if _overlap(a.rect, b.rect):
                 errors.append(f"world.json: locations '{aid}' and '{bid}' overlap")
+    for n, r in enumerate(world.map.roads):
+        if r.x < 0 or r.y < 0 or r.x + r.width > world.map.width or r.y + r.height > world.map.height:
+            errors.append(f"world.json: road {n} is outside the map")
+        for lid, loc in items:
+            if _overlap(r, loc.rect):
+                errors.append(f"world.json: road {n} overlaps location '{lid}'")
 
     for c in characters:
         where = f"characters/{c.id}.json"
@@ -132,6 +156,13 @@ def validate_world(path):
         for aid in c.allowed_actions:
             if aid not in rules.actions:
                 errors.append(f"{where}: allowed action '{aid}' is not in rules.actions")
+        for slot, plan in c.off_duty.items():
+            if slot not in slots:
+                errors.append(f"{where}: off_duty slot '{slot}' is not in clock.slots")
+            if plan.get("action", "none") not in c.allowed_actions:
+                errors.append(f"{where}: off_duty action '{plan.get('action')}' is not an allowed action")
+            if plan.get("move_to") is not None and plan["move_to"] not in location_ids:
+                errors.append(f"{where}: off_duty move_to '{plan['move_to']}' is not a known location")
         for stat in c.public_stats:
             if stat not in c.stats:
                 errors.append(f"{where}: public stat '{stat}' is not in stats")
@@ -158,6 +189,15 @@ def validate_world(path):
                 errors.append(f"{where}: only_slots entry '{slot}' is not in clock.slots")
         _check_conditions(action.requires, where, action.params, char_ids, errors)
         _check_effects(action.effects, where, action.params, char_ids, location_ids, errors)
+        if action.meet is not None and not (
+            (action.meet == "target" and "target" in action.params) or action.meet in char_ids
+        ):
+            errors.append(f"{where}: meet '{action.meet}' must be 'target' (with a target param) or a character id")
+        if action.break_into is not None and not (
+            (action.break_into == "target" and "target" in action.params)
+            or (action.break_into in world.locations and world.locations[action.break_into].owner is not None)
+        ):
+            errors.append(f"{where}: break_into must be 'target' (with a target param) or a location with an owner")
 
     for event in rules.events:
         where = f"rules.json: event '{event.id}'"
@@ -169,6 +209,18 @@ def validate_world(path):
         for branch in event.branches:
             _check_conditions(branch.if_, where, None, char_ids, errors)
             _check_effects(branch.effects, where, None, char_ids, location_ids, errors)
+
+    for v in rules.violations:
+        _check_conditions(v.if_, f"rules.json: violation '{v.id}'", None, char_ids, errors)
+        _check_effects(v.effects, f"rules.json: violation '{v.id}'", None, char_ids, location_ids, errors)
+        if v.verdict is not None:
+            for conds in v.verdict.jail_if:
+                _check_conditions(conds, f"rules.json: violation '{v.id}' verdict", None, char_ids, errors)
+            for effects in (v.verdict.jail, v.verdict.warn):
+                _check_effects(effects, f"rules.json: violation '{v.id}' verdict", None, char_ids, location_ids, errors)
+    if rules.aid is not None:
+        _check_conditions(rules.aid.if_, "rules.json: aid", None, char_ids, errors)
+        _check_effects(rules.aid.effects, "rules.json: aid", None, char_ids, location_ids, errors)
 
     n_llm = sum(1 for c in characters if c.kind == "llm")
     n_hybrid = sum(1 for c in characters if c.kind == "hybrid")

@@ -1,0 +1,39 @@
+#!/bin/zsh
+# Start Pixel Town: `pixeltown mock` (no LLM calls), `pixeltown real` (Gemini) or `pixeltown local` (Ollama).
+cd "${0:A:h}/.." || exit 1
+
+case "$1" in
+  mock)
+    mode=mock cap=60 scale=1 always=true
+    ;;
+  real)
+    # 5x slower clock + 30 calls/hour cap; pauses when no browser tab is open.
+    mode=gemini cap=30 scale=5 always=false
+    # Take only GEMINI_API_KEY from the git-ignored env files (first match wins); never load the whole file.
+    for f in .env.development.local .env; do
+      [[ -n "$GEMINI_API_KEY" ]] && break
+      [[ -f "$f" ]] || continue
+      line=$(grep -m1 -E '^[[:space:]]*(export[[:space:]]+)?GEMINI_API_KEY=' "$f")
+      val=${${line#*=}%$'\r'}
+      val=${${val#[\"\']}%[\"\']}
+      [[ -n "$val" ]] && export GEMINI_API_KEY=$val
+    done
+    if [[ -z "$GEMINI_API_KEY" ]]; then
+      read -s "GEMINI_API_KEY?Gemini key: "
+      echo
+      export GEMINI_API_KEY
+    fi
+    ;;
+  local)
+    # Ollama on this Mac (model from OLLAMA_MODEL, default ssfdre38/gemma4-turbo); no cap; pauses with no browser tab open;
+    # every character uses the LLM.
+    mode=ollama cap=0 scale=1 always=false
+    ;;
+  *)
+    echo "usage: pixeltown mock|real|local"
+    exit 1
+    ;;
+esac
+
+exec env LLM_MODE=$mode MAX_LLM_CALLS_PER_HOUR=$cap TIME_SCALE=$scale ALWAYS_RUN=$always ADMIN_TOKEN=test \
+  .venv/bin/uvicorn server.app:app --port 8000

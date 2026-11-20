@@ -1,6 +1,35 @@
 import { createHud } from "/static/hud.js";
 import { createRenderer } from "/static/renderer.js";
 
+const layout = document.querySelector(".layout");
+const resizer = document.getElementById("panel-resizer");
+try {
+  const saved = Number(localStorage.getItem("panelWidth"));
+  if (saved) layout.style.setProperty("--panel-w", `${saved}px`);
+} catch {
+  // storage blocked: keep the default width
+}
+resizer.addEventListener("pointerdown", (e) => {
+  resizer.setPointerCapture(e.pointerId);
+  document.body.style.userSelect = "none";
+  let width = 0;
+  const move = (ev) => {
+    width = Math.round(Math.min(Math.max(innerWidth - ev.clientX, 240), innerWidth * 0.6));
+    layout.style.setProperty("--panel-w", `${width}px`);
+  };
+  const up = () => {
+    resizer.removeEventListener("pointermove", move);
+    document.body.style.userSelect = "";
+    try {
+      if (width) localStorage.setItem("panelWidth", String(width));
+    } catch {
+      // storage blocked: width lasts until reload
+    }
+  };
+  resizer.addEventListener("pointermove", move);
+  resizer.addEventListener("lostpointercapture", up, { once: true });
+});
+
 const worlds = await (await fetch("/api/worlds")).json();
 const worldId = new URLSearchParams(location.search).get("world") || worlds[0].id;
 const base = `/api/worlds/${encodeURIComponent(worldId)}`;
@@ -72,7 +101,10 @@ if (!defRes.ok) {
         break;
       case "speech":
         pushChat({ speaker: ev.speaker, name: ev.name, text: ev.text });
-        renderer.showBubble(ev.speaker, ev.text);
+        renderer.showBubble(ev.speaker, ev.text, ev.to);
+        break;
+      case "talk":
+        renderer.setTalk(ev.pair, ev.open);
         break;
       case "system":
         pushChat({ speaker: "system", name: "System", text: ev.text });

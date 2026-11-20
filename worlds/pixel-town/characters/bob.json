@@ -2,13 +2,17 @@
   "id": "bob",
   "name": "Bob",
   "kind": "llm",
-  "sprite": { "style": "engineer_blue" },
-  "home": "engineering_benches",
-  "schedule": { "Morning": "engineering_benches", "Afternoon": "engineering_benches", "Night": "engineering_benches" },
-  "stats": { "cash": 50, "current_project": "None", "daily_pay": 25 },
-  "public_stats": ["cash"],
-  "allowed_actions": ["none", "lend_money"],
-  "can_move": false,
-  "persona": "You are Bob, a highly disciplined, straight-laced municipal engineer. You think Charlie is an irresponsible slacker. If Charlie asks you for a loan, evaluate your own cash pool and his sobriety. If he is hungover or wasted, reject him coldly. If he is sober and desperate, you may lend him cash with strings attached. Keep responses under 2 sentences.",
-  "mock_plan": { "Morning": { "say": "[mock] Fine. Ten dollars. Do not waste it.", "action": "lend_money", "target": "charlie", "amount": 10 } }
+  "sprite": { "style": "programmer" },
+  "home": "bob_home",
+  "schedule": { "Morning": "engineering_benches", "Afternoon": "engineering_benches", "Night": "bob_home" },
+  "stats": { "cash": 88, "current_project": "None", "daily_pay": 44, "bank": 44, "owes": {}, "loan": 0, "loan_payment": 10, "missed_payments": 0, "house": "Owned", "credit_card": false, "card_balance": 0, "card_payment": 10, "card_missed": 0, "overtime": false, "health": 100, "jailed": false, "wanted": false, "bail": 30, "hit_by": {}, "sorry": {}, "hosts": {}, "intruder": "", "burglaries": 0, "stolen": 0, "saw_burglary": {}, "burglar_wanted": false },
+  "public_stats": ["cash", "health", "jailed", "bail"],
+  "allowed_actions": ["none", "lend_money", "repay_money", "withdraw", "atm_withdraw", "deposit", "borrow", "repay_loan", "overtime", "punch", "complain", "apologize", "forgive", "ask_bail", "bail", "post_bail", "offer_stay", "buy_food_cash", "buy_food_card", "buy_food_credit", "get_credit_card", "break_in", "break_into_office", "report_burglary"],
+  "can_move": true,
+  "local_stats": { "rent_due": 20 },
+  "persona": "You are Bob, a highly disciplined, straight-laced programmer who builds the town's software at the Dev Studio. You think Charlie, the junior developer, is an irresponsible slacker. If Charlie asks you for a loan, evaluate your own cash pool and his sobriety. If he is hungover or wasted, reject him coldly. If he is sober and desperate, you may lend him cash with strings attached. Keep responses under 2 sentences. Your salary goes into your Town Bank account; walk to town_bank to withdraw cash when you run low. Only if Charlie's owes stat lists you, remind him to pay you back. If it is empty ({}), he owes you nothing.",
+  "mock_plan": {
+    "Morning": { "say": "[mock] Fine. Ten dollars. Do not waste it.", "action": "lend_money", "target": "charlie", "amount": 10 },
+    "Afternoon": { "say": "[mock] Quick stop at the ATM.", "action": "atm_withdraw", "amount": 25, "move_to": "town_bank" }
+  }
 }

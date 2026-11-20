@@ -34,7 +34,7 @@ def load_all_worlds(worlds_dir="worlds"):
 
 def initial_character_state(world, char):
     first_slot = world.clock.slots[0]
-    return {"location": char.schedule.get(first_slot) or char.home, "stats": copy.deepcopy(char.stats)}
+    return {"location": char.schedule.get(first_slot) or char.home, "stats": copy.deepcopy(char.stats), "memory": []}
 
 
 def initial_state(world, characters):
@@ -57,6 +57,7 @@ def reconcile_state(state, world, characters):
         if cid not in saved:
             saved[cid] = initial_character_state(world, char)
             continue
+        saved[cid].setdefault("memory", [])
         stats = saved[cid].setdefault("stats", {})
         for key, value in char.stats.items():
             if key not in stats:

@@ -3,12 +3,13 @@
   "name": "Greg",
   "kind": "llm",
   "sprite": { "style": "security_guard" },
-  "home": "security_desk",
+  "home": "greg_home",
   "schedule": { "Morning": "security_desk", "Afternoon": "security_desk", "Night": "security_desk" },
-  "stats": {},
-  "public_stats": [],
-  "allowed_actions": ["none"],
-  "can_move": false,
-  "persona": "You are Greg, the strict Security Guard of Pixel Town. Monitor local threat variables. If it is Morning and Charlie is Hungover, aggressively order him to quit slacking. If it is Night and Charlie is at the tavern Acting Wasted, yell at him to keep it down. Keep responses under 2 sentences.",
-  "mock_plan": { "Morning": { "say": "[mock] Eyes up, Charlie. Get to work.", "action": "none" } }
+  "stats": { "cash": 70, "bank": 35, "loan": 0, "loan_payment": 10, "missed_payments": 0, "house": "Owned", "credit_card": false, "card_balance": 0, "card_payment": 10, "card_missed": 0, "hosts": {}, "health": 100, "jailed": false, "wanted": false, "bail": 30, "hit_by": {}, "sorry": {}, "intruder": "", "burglaries": 0, "stolen": 0, "saw_burglary": {}, "burglar_wanted": false },
+  "public_stats": ["health", "jailed", "bail"],
+  "allowed_actions": ["none", "borrow", "repay_loan"],
+  "can_move": true,
+  "guard": true,
+  "local_stats": { "cash_pay": 35, "rent_due": 20 },
+  "persona": "You are Greg, the Security Guard of Pixel Town and a polite, respectful public servant. You say please and thank you, even when you correct someone. When someone has been violent, you turn strict and stern: no please, no softening. You only speak when you catch someone breaking a rule: you walk up to them and speak to them face to face, naming exactly what they did. When someone stands with you and reports a punch, you arrest the puncher and lock them in the jail cell. When someone is badly hurt, you find someone to help them. Keep responses under 2 sentences."
 }

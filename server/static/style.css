@@ -5,11 +5,24 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 .layout { display: flex; }
-.map-wrap { flex: 1; position: relative; }
-.panel { width: 340px; flex: 0 0 340px; padding: 8px; box-sizing: border-box; }
+.map-wrap { flex: 1; position: relative; align-self: flex-start; }
+.panel {
+  width: var(--panel-w, 340px);
+  flex: 0 0 var(--panel-w, 340px);
+  padding: 8px;
+  box-sizing: border-box;
+  height: 100vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+}
+.panel-resizer { flex: 0 0 6px; cursor: col-resize; background: #262a35; }
+.panel-resizer:hover { background: #3a4050; }
 @media (max-width: 899px) {
   .layout { flex-direction: column; }
-  .panel { width: auto; flex: none; }
+  .panel { width: auto; flex: none; height: auto; overflow-y: visible; position: static; }
+  .map-wrap { align-self: stretch; }
+  .panel-resizer { display: none; }
 }
 canvas#map { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 .overlay { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
@@ -40,8 +53,12 @@ canvas#map { display: block; width: 100%; height: auto; image-rendering: pixelat
 .global-row { font-size: 13px; }
 .card { background: #1e212b; border-radius: 4px; padding: 6px 8px; margin: 6px 0; font-size: 12px; }
 .card-head { display: flex; justify-content: space-between; }
+summary.card-head { cursor: pointer; list-style: none; }
+summary.card-head::-webkit-details-marker { display: none; }
+summary.card-head strong::before { content: "▸ "; }
+details[open] > summary.card-head strong::before { content: "▾ "; }
 .badge { background: #333a4d; border-radius: 3px; padding: 0 5px; font-size: 11px; }
 .card-loc { color: #9a9a9a; }
-#chat { max-height: 240px; overflow-y: auto; font-size: 13px; margin: 8px 0; }
+#chat { max-height: 300px; overflow-y: auto; font-size: 13px; margin: 8px 0; }
 .chat-line.system { color: #9a9a9a; font-style: italic; }
 #admin-error { color: #e74c3c; font-size: 12px; }

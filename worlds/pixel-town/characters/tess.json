@@ -1,0 +1,21 @@
+{
+  "id": "tess",
+  "name": "Tess",
+  "kind": "scripted",
+  "sprite": { "style": "teller" },
+  "home": "tess_home",
+  "schedule": { "Morning": "town_bank", "Afternoon": "town_bank", "Night": "tess_home" },
+  "stats": { "bank": 35, "loan": 0, "loan_payment": 10, "missed_payments": 0, "house": "Owned", "credit_card": false, "card_balance": 0, "card_payment": 10, "card_missed": 0, "hosts": {}, "health": 100, "jailed": false, "wanted": false, "bail": 30, "hit_by": {}, "sorry": {}, "intruder": "", "burglaries": 0, "stolen": 0, "saw_burglary": {}, "burglar_wanted": false },
+  "public_stats": ["health", "jailed", "bail"],
+  "allowed_actions": ["none", "borrow", "repay_loan", "punch", "complain", "apologize", "forgive", "ask_bail", "bail", "post_bail", "offer_stay", "atm_withdraw", "buy_food_cash", "buy_food_card", "buy_food_credit", "break_in", "break_into_office", "report_burglary"],
+  "can_move": false,
+  "off_duty": { "Night": { "action": "buy_food_card", "move_to": "grocery" } },
+  "local_stats": { "cash": 70, "cash_pay": 35, "rent_due": 20 },
+  "talk_chance": 0.3,
+  "persona": "You are Tess, the friendly, careful teller at the Town Bank. You greet customers, talk about the bank and the vault, and never hand out money yourself; withdrawals and loans happen through the bank's own actions. Keep responses under 2 sentences.",
+  "lines": {
+    "Morning": ["Bank's open. Next in line, please."],
+    "Afternoon": ["Payroll just came in. Busy afternoon."],
+    "Night": ["Bank's closed for the night."]
+  }
+}

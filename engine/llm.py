@@ -1,7 +1,9 @@
 import asyncio
 import json
+import os
 import re
 import time
+import urllib.request
 from collections import deque
 from typing import Optional
 
@@ -97,7 +99,40 @@ class GeminiClient:
                 return parse_turn(res.text)
             except Exception as exc:  # network, quota, safety, schema...
                 print(f"[llm] {char.id}: attempt failed: {exc}")
+                if getattr(exc, "code", None) in (400, 401, 403, 404):  # bad request/key/model: retrying won't help
+                    break
         return dict(NONE_TURN)
+
+
+class OllamaClient:
+    """Local model through Ollama (http://localhost:11434). Model from OLLAMA_MODEL; the world's model id is ignored."""
+
+    def __init__(self):
+        self.model = os.environ.get("OLLAMA_MODEL", "ssfdre38/gemma4-turbo")
+
+    def _post(self, body):
+        req = urllib.request.Request(
+            "http://localhost:11434/api/chat",
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=120) as res:
+            return json.loads(res.read())
+
+    async def generate_turn(self, *, char, slot, prompt, model):
+        body = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "format": TurnSchema.model_json_schema(),
+            "stream": False,
+            "options": {"temperature": char.temperature},
+        }
+        try:
+            res = await asyncio.to_thread(self._post, body)
+            return parse_turn(res["message"]["content"])
+        except Exception as exc:  # Ollama not running, model missing, timeout...
+            print(f"[llm] {char.id}: ollama failed: {exc}")
+            return dict(NONE_TURN)
 
 
 class MockClient:
@@ -117,4 +152,6 @@ class MockClient:
 def make_client(mode):
     if mode == "mock":
         return MockClient()
+    if mode == "ollama":
+        return OllamaClient()
     return GeminiClient()
